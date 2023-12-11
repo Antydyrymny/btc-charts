@@ -17,7 +17,8 @@
         "dayjs": "^1.11.10",
         "fibers": "^5.0.3",
         "mongoose": "^8.0.3",
-        "vue-chartjs": "^5.2.0"
+        "vue-chartjs": "^5.2.0",
+        "vue-toastification": "^2.0.0-rc.5"
     },
     "devDependencies": {
         "@nuxt/devtools": "latest",

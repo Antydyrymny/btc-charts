@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import Slider from '@vueform/slider';
 import type { TCoin, TCurrency, THistoryRangeReq, TPriceData } from '../types/api';
+import { useToast } from 'vue-toastification';
 
 const coin = ref<TCoin>('bitcoin');
 const vs_currency = ref<TCurrency>('usd');
@@ -12,32 +13,74 @@ const startDate = +startDateString;
 
 const endDate = dayjs().unix();
 
+const granularityOptions = ['1D', '7D', '1M', '6M', '1Y', 'MAX', 'custom'] as const;
+const granularity = ref<(typeof granularityOptions)[number]>('MAX');
+
+const changeGranularity = (option: (typeof granularityOptions)[number]) => {
+    granularity.value = option;
+};
+
 const sliderRange = ref([startDate, endDate]);
-const dateFormat = (val: number) => dayjs(val * 1000).format('YYYY-MM-DD');
+const sliderDateFormat = (val: number) => dayjs(val * 1000).format('YYYY-MM-DD');
+
+const requestTimeRange = computed(() => {
+    let range: [number, number];
+    switch (granularity.value) {
+        case '1D':
+            range = [dayjs().subtract(1, 'day').unix(), endDate];
+            break;
+        case '7D':
+            range = [dayjs().subtract(7, 'day').unix(), endDate];
+            break;
+        case '1M':
+            range = [dayjs().subtract(1, 'month').unix(), endDate];
+            break;
+        case '6M':
+            range = [dayjs().subtract(6, 'month').unix(), endDate];
+            break;
+        case '1Y':
+            range = [dayjs().subtract(1, 'year').unix(), endDate];
+            break;
+        case 'MAX':
+            range = [startDate, endDate];
+            break;
+        case 'custom':
+            range = [sliderRange.value[0], sliderRange.value[1]];
+            break;
+    }
+    return range;
+});
+watch(requestTimeRange, () => {
+    sliderRange.value = requestTimeRange.value;
+});
 
 const {
     data: chartData,
     status,
     error,
 } = await useAsyncData(
-    `${coin}/${vs_currency}/${sliderRange.value[0].toString()}/${sliderRange.value[1].toString()}`,
+    `${coin}/${vs_currency}/${requestTimeRange.value[0].toString()}/${requestTimeRange.value[1].toString()}`,
     () =>
         $fetch<TPriceData>('/api/coin-gecko', {
             params: ((): THistoryRangeReq => ({
                 coin: coin.value,
                 vs_currency: vs_currency.value,
-                from: sliderRange.value[0],
-                to: sliderRange.value[1],
+                from: requestTimeRange.value[0],
+                to: requestTimeRange.value[1],
             }))(),
         }),
-    { watch: [sliderRange, coin, vs_currency], server: false }
+    { watch: [requestTimeRange, coin, vs_currency], server: false }
 );
+
+watch(error, () => {
+    if (error.value) useToast().error(error.value.message);
+});
 </script>
 
 <template>
     <div class="container mt-5">
         <form>
-            <div class="row mb-2">
+            <div class="row mb-3">
                 <div class="col-lg-1 col-3">
                     <label for="coinInput">Crypto coin:</label>
                     <select
@@ -72,13 +115,27 @@ const {
                     </div>
                 </div>
             </div>
-            <div class="row mb-5">
-                <div class="col-lg-3 col-6">
+            <div class="row justify-start mb-5">
+                <div class="col-lg-4 col-6">
+                    <template v-for="option of granularityOptions" :key="option">
+                        <input
+                            :id="option"
+                            :checked="option === granularity"
+                            type="radio"
+                            class="btn-check"
+                            name="options"
+                            autocomplete="off"
+                            @click="changeGranularity(option)"
+                        />
+                        <label class="btn outline-none" :for="option">{{ option }}</label>
+                    </template>
+                </div>
+                <div v-show="granularity === 'custom'" class="col-lg-3 col-6">
                     <label for="dateRange" class="form-label">Specify date range</label>
                     <Slider
                         id="dateRange"
                         v-model="sliderRange"
-                        :format="dateFormat"
+                        :format="sliderDateFormat"
                         :disabled="status === 'pending'"
                         :min="startDate"
                         :max="endDate"
@@ -91,7 +148,6 @@ const {
         <div class="row">
             <PriceChart :chart-data="chartData" :coin="coin" :currency="vs_currency" />
         </div>
-        <div v-show="error">Error loading chart data: {{ error?.message }}</div>
     </div>
 </template>
 
