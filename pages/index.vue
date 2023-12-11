@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import Slider from '@vueform/slider';
 import type { TCoin, TCurrency, THistoryRangeReq, TPriceData } from '../types/api';
-import { useToast } from 'vue-toastification';
+import * as pkg from 'vue-toastification';
+const { useToast } = pkg;
 
 const coin = ref<TCoin>('bitcoin');
 const vs_currency = ref<TCurrency>('usd');
