@@ -50,8 +50,8 @@ const requestTimeRange = computed(() => {
     }
     return range;
 });
-watch(requestTimeRange, () => {
-    sliderRange.value = requestTimeRange.value;
+watch([requestTimeRange, granularity], () => {
+    if (granularity.value !== 'custom') sliderRange.value = requestTimeRange.value;
 });
 
 const {
